@@ -7,6 +7,10 @@ from time import sleep
 import pyautogui
 import os 
 
+from pyvirtualdisplay import Display
+display = Display(visible=0, size=(800, 600))
+display.start()
+
 
 
 webbrowser.open('https://web.whatsapp.com/')
@@ -45,5 +49,5 @@ for linha in pagina_clientes.iter_rows(min_row=2):
         print(f'Não foi possivel enviar a mensagem para {Nome_Pdv}, verifique se o número {contato} está correto.')
         with open('erros.csv','a',newline='',encoding='utf-8') as arquivo:
             arquivo.write(f'{Pdv},{Nome_Pdv},{contato}\n')
-        
+         display.stop()
 

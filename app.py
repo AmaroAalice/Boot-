@@ -16,9 +16,19 @@ from selenium.webdriver.common.keys import Keys
 # ------------------------------
 # CONFIGURAÇÃO
 # ------------------------------
-CHROMEDRIVER_PATH = "/usr/local/bin/chromedriver"  # O selenium utiliza este driver para controlar o Chrome
-CHROME_PROFILE_PATH = "./chrome_whatsapp_profile" # Perfil do Chrome para manter sessão do WhatsApp
-PLANILHAS_DIR = './Planilhas' # Diretório onde estão as planilhas Excel
+from dotenv import load_dotenv
+load_dotenv()
+CHROMEDRIVER_PATH = os.getenv("CHROMEDRIVER_PATH")  # O selenium utiliza este driver para controlar o Chrome
+CHROME_PROFILE_PATH = os.getenv("CHROME_PROFILE_PATH")  # Perfil do Chrome para manter sessão do WhatsApp
+PLANILHAS_DIR = os.getenv("PLANILHAS_DIR")  # Diretório onde estão as planilhas Excel
+os.makedirs(CHROME_PROFILE_PATH, exist_ok=True)
+os.makedirs(PLANILHAS_DIR, exist_ok=True)
+
+# Permite ao usuário alterar o diretório das planilhas
+print(f"O programa, por padrão, utiliza o diretório '{PLANILHAS_DIR}' para ler as planilhas e enviar mensagens.\n")
+pasta_input = input("Pressione Enter para manter ou digite o caminho absoluto do outro diretório a ser utilizado: ").strip()
+if pasta_input:
+    PLANILHAS_DIR = pasta_input
 
 # ------------------------------
 # CARREGA PLANILHA MAIS RECENTE
@@ -39,7 +49,6 @@ pagina_clientes = workbook['RANTING'] if 'RANTING' in workbook.sheetnames else w
 chrome_options = Options()
 chrome_options.add_argument(f"--user-data-dir={CHROME_PROFILE_PATH}")
 chrome_options.add_argument("--profile-directory=Default")
-# chrome_options.add_argument("--headless")  # se quiser sem interface
 
 service = Service(CHROMEDRIVER_PATH)
 driver = webdriver.Chrome(service=service, options=chrome_options)

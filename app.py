@@ -4,6 +4,7 @@ import openpyxl
 from urllib.parse import quote
 from time import sleep
 import datetime
+import platform
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -18,11 +19,10 @@ from selenium.webdriver.common.keys import Keys
 # ------------------------------
 from dotenv import load_dotenv
 load_dotenv()
-CHROMEDRIVER_PATH = os.getenv("CHROMEDRIVER_PATH")  # O selenium utiliza este driver para controlar o Chrome
 CHROME_PROFILE_PATH = os.getenv("CHROME_PROFILE_PATH")  # Perfil do Chrome para manter sessão do WhatsApp
 PLANILHAS_DIR = os.getenv("PLANILHAS_DIR")  # Diretório onde estão as planilhas Excel
-os.makedirs(CHROME_PROFILE_PATH, exist_ok=True)
-os.makedirs(PLANILHAS_DIR, exist_ok=True)
+os.makedirs(CHROME_PROFILE_PATH, exist_ok=True) # Garante que o diretório do perfil do Chrome exista
+os.makedirs(PLANILHAS_DIR, exist_ok=True) # Garante que o diretório das planilhas exista
 
 # Permite ao usuário alterar o diretório das planilhas
 print(f"O programa, por padrão, utiliza o diretório '{PLANILHAS_DIR}' para ler as planilhas e enviar mensagens.\n")
@@ -50,7 +50,13 @@ chrome_options = Options()
 chrome_options.add_argument(f"--user-data-dir={CHROME_PROFILE_PATH}")
 chrome_options.add_argument("--profile-directory=Default")
 
-service = Service(CHROMEDRIVER_PATH)
+SO = platform.system().lower()
+if SO.startswith("win"):
+    chromedriver_name = "chromedriver-windows.exe"
+else:
+    chromedriver_name = "chromedriver-linux"
+
+service = Service(f"./chrome_drivers/{chromedriver_name}")
 driver = webdriver.Chrome(service=service, options=chrome_options)
 
 # Abre WhatsApp Web
@@ -109,7 +115,7 @@ for linha in pagina_clientes.iter_rows(min_row=2, values_only=True):
     except Exception as e:
         print(f"⚠️ Erro ao enviar mensagem para {Nome_Pdv}: {e}")
         with open('erros.csv', 'a', encoding='utf-8') as arquivo_erro:
-            arquivo_erro.write(f"{Pdv},{Nome_Pdv},{contato}\n")
+            arquivo_erro.write(f"{e} - {Pdv},{Nome_Pdv},{contato}\n")
 
 # ------------------------------
 # FINALIZA

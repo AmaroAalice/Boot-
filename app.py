@@ -51,12 +51,19 @@ chrome_options.add_argument(f"--user-data-dir={CHROME_PROFILE_PATH}")
 chrome_options.add_argument("--profile-directory=Default")
 
 SO = platform.system().lower()
-if SO.startswith("win"):
-    chromedriver_name = "chromedriver-windows.exe"
-else:
-    chromedriver_name = "chromedriver-linux"
 
-service = Service(f"./chrome_drivers/{chromedriver_name}")
+if getattr(sys, 'frozen', False):
+    if SO.startswith("win"):
+        chromedriver_path = os.path.join(sys._MEIPASS, 'chromedriver-windows.exe')
+    else:
+        chromedriver_path = os.path.join(sys._MEIPASS, 'chromedriver-linux')
+else:
+    if SO.startswith("win"):
+        chromedriver_path = "chrome_drivers/chromedriver-windows.exe"
+    else:
+        chromedriver_path = "chrome_drivers/chromedriver-linux"
+
+service = Service(chromedriver_path)
 driver = webdriver.Chrome(service=service, options=chrome_options)
 
 # Abre WhatsApp Web

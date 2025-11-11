@@ -3,3 +3,5 @@
 /.venv
 erros.csv
 *.spec
+/build
+/dist

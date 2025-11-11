@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import openpyxl
 from urllib.parse import quote
 from time import sleep
@@ -19,9 +20,7 @@ from selenium.webdriver.common.keys import Keys
 # ------------------------------
 from dotenv import load_dotenv
 load_dotenv()
-CHROME_PROFILE_PATH = os.getenv("CHROME_PROFILE_PATH")  # Perfil do Chrome para manter sessão do WhatsApp
 PLANILHAS_DIR = os.getenv("PLANILHAS_DIR")  # Diretório onde estão as planilhas Excel
-os.makedirs(CHROME_PROFILE_PATH, exist_ok=True) # Garante que o diretório do perfil do Chrome exista
 os.makedirs(PLANILHAS_DIR, exist_ok=True) # Garante que o diretório das planilhas exista
 
 # Permite ao usuário alterar o diretório das planilhas
@@ -47,24 +46,36 @@ pagina_clientes = workbook['RANTING'] if 'RANTING' in workbook.sheetnames else w
 # CONFIGURA CHROME / SELENIUM
 # ------------------------------
 chrome_options = Options()
-chrome_options.add_argument(f"--user-data-dir={CHROME_PROFILE_PATH}")
-chrome_options.add_argument("--profile-directory=Default")
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--disable-software-rasterizer")
+chrome_options.add_argument("--remote-debugging-port=9222")
 
 SO = platform.system().lower()
 
 if getattr(sys, 'frozen', False):
     if SO.startswith("win"):
-        chromedriver_path = os.path.join(sys._MEIPASS, 'chromedriver-windows.exe')
+        chromedriver_path = os.path.join(sys._MEIPASS, 'chrome_drivers', 'chromedriver-windows.exe')
     else:
-        chromedriver_path = os.path.join(sys._MEIPASS, 'chromedriver-linux')
+        chromedriver_path = os.path.join(sys._MEIPASS, 'chrome_drivers', 'chromedriver-linux')
 else:
     if SO.startswith("win"):
-        chromedriver_path = "chrome_drivers/chromedriver-windows.exe"
+        chromedriver_path = os.path.join('chrome_drivers', 'chromedriver-windows.exe')
     else:
-        chromedriver_path = "chrome_drivers/chromedriver-linux"
+        chromedriver_path = os.path.join('chrome_drivers', 'chromedriver-linux')
+
 
 service = Service(chromedriver_path)
 driver = webdriver.Chrome(service=service, options=chrome_options)
+
+use_profile = os.getenv("USE_CHROME_PROFILE") == "1"
+if use_profile:
+    profile_dir = os.getenv("PROFILE_DIR")
+    if not profile_dir:
+        profile_dir = os.path.join(os.path.expanduser("~"), ".config", "chrome-whatsapp")
+    os.makedirs(profile_dir, exist_ok=True)
+    chrome_options.add_argument(f"--user-data-dir={profile_dir}")
 
 # Abre WhatsApp Web
 driver.get("https://web.whatsapp.com/")
@@ -77,8 +88,8 @@ for linha in pagina_clientes.iter_rows(min_row=2, values_only=True):
     Pdv = linha[0]
     Nome_Pdv = linha[1]
     contato = linha[2]
-    data_chamada = linha[5] if len(linha) > 5 else None
-    motivo = linha[8] if len(linha) > 8 else None
+    data_chamada = linha[4] if len(linha) >= 5 else None
+    motivo = linha[7] if len(linha) >= 8 else None
 
     # pula se não tiver contato
     if not contato:
@@ -99,7 +110,7 @@ for linha in pagina_clientes.iter_rows(min_row=2, values_only=True):
     # mensagem personalizada
     mensagem = (
         f"Olá {Nome_Pdv}, tudo bem?\n"
-        f"Gostaria de entender o motivo da sua Avaliação do dia {data_str} ser '{motivo}'.\n"
+        f"Gostaria de entender o motivo da sua avaliação do dia {data_str} ser '{motivo}'.\n"
         "Podemos agendar uma conversa para melhorarmos sua experiência?"
     )
 

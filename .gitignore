@@ -2,3 +2,4 @@
 /assets
 /.venv
 erros.csv
+*.spec

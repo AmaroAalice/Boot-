@@ -18,18 +18,12 @@ from selenium.webdriver.common.keys import Keys
 # ------------------------------
 # CONFIGURAÇÃO (variáveis de ambiente e diretórios)
 # ------------------------------
-# Usa python-dotenv para carregar variáveis do arquivo .env
 from dotenv import load_dotenv
 load_dotenv()
 
-# PLANILHAS_DIR deve apontar para a pasta onde estão os arquivos .xlsx
-# Se a variável não existir no .env, será None — o os.makedirs abaixo falhará.
-# Portanto garanta que PLANILHAS_DIR esteja definido no .env antes de rodar.
 PLANILHAS_DIR = os.getenv("PLANILHAS_DIR")
 os.makedirs(PLANILHAS_DIR, exist_ok=True)  # cria a pasta se não existir
 
-# Permite que o usuário altere o diretório em tempo de execução.
-# Isso é útil para compartilhar o script com amigos que tenham pastas diferentes.
 print(f"O programa, por padrão, utiliza o diretório '{PLANILHAS_DIR}' para ler as planilhas e enviar mensagens.\n")
 pasta_input = input("Pressione Enter para manter ou digite o caminho absoluto do outro diretório a ser utilizado: ").strip()
 if pasta_input:
@@ -46,15 +40,12 @@ if not arquivos:
 arquivo_mais_recente = max(arquivos, key=os.path.getctime)
 print(f"📂 Arquivo mais recente encontrado: {arquivo_mais_recente}")
 
-# Abre a planilha com openpyxl e escolhe a aba 'RANTING' se existir,
-# caso contrário usa a aba ativa. Isso evita erro se a aba tiver nome diferente.
 workbook = openpyxl.load_workbook(arquivo_mais_recente)
 pagina_clientes = workbook['RANTING'] if 'RANTING' in workbook.sheetnames else workbook.active
 
 # ------------------------------
 # CONFIGURA CHROME / SELENIUM
 # ------------------------------
-# Prepara opções do Chrome que ajudam em ambientes sem display (servidores) e estabilidade.
 chrome_options = Options()
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
@@ -80,10 +71,6 @@ else:
     else:
         chromedriver_path = os.path.join('chrome_drivers', 'chromedriver-linux')
 
-# Cria o Service do chromedriver e inicializa o webdriver com as opções definidas acima.
-service = Service(chromedriver_path)
-driver = webdriver.Chrome(service=service, options=chrome_options)
-
 # Opção opcional: usar perfil do Chrome para persistir sessão (evitar QR toda vez).
 # Para habilitar defina USE_CHROME_PROFILE=1 e opcionalmente PROFILE_DIR no .env.
 use_profile = os.getenv("USE_CHROME_PROFILE") == "1"
@@ -94,30 +81,32 @@ if use_profile:
         profile_dir = os.path.join(os.path.expanduser("~"), ".config", "chrome-whatsapp")
     os.makedirs(profile_dir, exist_ok=True)
     chrome_options.add_argument(f"--user-data-dir={profile_dir}")
-    # Nota: use_profile precisa ser definido antes de criar o driver para surtir efeito.
-    # Se quiser ativar o perfil, mova esse bloco acima da criação do webdriver.
+
+# Cria o Service do chromedriver e inicializa o webdriver com as opções definidas acima.
+service = Service(chromedriver_path)
+driver = webdriver.Chrome(service=service, options=chrome_options)
 
 # ------------------------------
 # ABRE WHATSAPP WEB E PAUSA PARA LOGIN
 # ------------------------------
-# Abre a página do WhatsApp Web. O usuário precisa escanear o QR Code (na primeira vez)
-# ou confirmar o login no navegador se já tiver sessão ativa.
 driver.get("https://web.whatsapp.com/")
-input("📌 Escaneie o QR Code ou confirme login e pressione Enter...")
+input("📱 Após escanear o QR Code e o WhatsApp Web carregar, pressione Enter para continuar...")
 
 # ------------------------------
 # LOOP PARA ENVIAR MENSAGENS (LINHA A LINHA)
 # ------------------------------
 # Itera sobre as linhas da planilha (a partir da segunda, assumindo cabeçalho na primeira)
-for linha in pagina_clientes.iter_rows(min_row=2, values_only=True):
-    Pdv = linha[0]
-    Nome_Pdv = linha[1]
-    contato = linha[2]
+for idx, linha in enumerate(pagina_clientes.iter_rows(min_row=2, values_only=True), start=2):
+    row_num = idx
+    Pdv = linha[0] if len(linha) >= 1 else None
+    Nome_Pdv = linha[1] if len(linha) >= 2 else None
+    contato = linha[2] if len(linha) >= 3 else None
     data_chamada = linha[4] if len(linha) >= 5 else None
+    data_atendimento = linha[5] if len(linha) >= 6 else None
     motivo = linha[7] if len(linha) >= 8 else None
 
-    # Se não houver contato, pula essa linha
-    if not contato:
+    # Se não houver contato ou já houver data de atendimento, pula para o próximo.
+    if not contato or data_atendimento:
         continue
 
     # FORMATAÇÃO DO NÚMERO:
@@ -136,6 +125,8 @@ for linha in pagina_clientes.iter_rows(min_row=2, values_only=True):
         data_str = str(data_chamada or "")
 
     # Mensagem personalizada - pode ser alterada conforme necessidade.
+    if not motivo:
+        motivo = "Sem motivo especificado"
     mensagem = (
         f"Olá {Nome_Pdv}, tudo bem?\n"
         f"Gostaria de entender o motivo da sua avaliação do dia {data_str} ser '{motivo}'.\n"
@@ -158,7 +149,15 @@ for linha in pagina_clientes.iter_rows(min_row=2, values_only=True):
         sleep(1)  # pequena espera para garantir foco
         caixa_msg.click()
         caixa_msg.send_keys(mensagem + Keys.ENTER)  # envia a mensagem pressionando Enter
-        sleep(2)  # espera curta após envio
+        # Espera aparecer o último balão de mensagem enviada
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "div.message-out"))
+        )
+
+        sleep(1)  # pequena folga de segurança
+        data_atendimento = datetime.datetime.now().date().strftime('%d/%m/%Y')
+        pagina_clientes.cell(row=row_num, column=6, value=data_atendimento)  # marca data de atendimento na linha correta
+        workbook.save(arquivo_mais_recente)  # salva a planilha atualizada
         print(f"✅ Mensagem enviada para {Nome_Pdv}")
 
     except Exception as e:

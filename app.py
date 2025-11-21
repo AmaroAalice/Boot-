@@ -101,9 +101,9 @@ for idx, linha in enumerate(pagina_clientes.iter_rows(min_row=2, values_only=Tru
     Pdv = linha[0] if len(linha) >= 1 else None
     Nome_Pdv = linha[1] if len(linha) >= 2 else None
     contato = linha[2] if len(linha) >= 3 else None
-    data_chamada = linha[4] if len(linha) >= 5 else None
-    data_atendimento = linha[5] if len(linha) >= 6 else None
-    motivo = linha[7] if len(linha) >= 8 else None
+    data_chamada = linha[5] if len(linha) >= 5 else None
+    data_atendimento = linha[6] if len(linha) >= 6 else None
+    motivo = linha[8] if len(linha) >= 8 else None
 
     # Se não houver contato ou já houver data de atendimento, pula para o próximo.
     if not contato or data_atendimento:
@@ -129,7 +129,7 @@ for idx, linha in enumerate(pagina_clientes.iter_rows(min_row=2, values_only=Tru
         motivo = "Sem motivo especificado"
     mensagem = (
         f"Olá {Nome_Pdv}, tudo bem?\n"
-        f"Gostaria de entender o motivo da sua avaliação do dia {data_str} ser '{motivo}'.\n"
+        f"Sou A Alice da Ambev,Gostaria de entender o motivo da sua avaliação do dia {data_str} ser '{motivo}'.\n"
         "Podemos agendar uma conversa para melhorarmos sua experiência?"
     )
 
@@ -171,3 +171,4 @@ for idx, linha in enumerate(pagina_clientes.iter_rows(min_row=2, values_only=Tru
 # ------------------------------
 driver.quit()  # fecha o navegador controlado pelo Selenium
 print("🏁 Processo finalizado com sucesso!")
+
